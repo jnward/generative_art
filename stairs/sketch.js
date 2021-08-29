@@ -1,47 +1,47 @@
 
 const canvasHeight = 1000;
-const canvasWidth = 2000;
-const maxLength = canvasWidth / 3;
-const maxHeight = canvasHeight / 3;
-const maxDepth = 5;
-const weight = 0;
-const baseEnd = canvasWidth - canvasWidth * (1/5);
+const canvasWidth = 1000;
+const maxDepth = 4;
+const skew = Math.sqrt(2);
+const maxLength = canvasWidth / 4;
+const maxHeight = canvasHeight / 2 - (canvasHeight / 2) % 2**(maxDepth+3);
+const weight = 1;
+let baseEnd = canvasWidth - canvasWidth * (1/5);
+const shade = false;
+const cross = true;
+const delta1 = 1;
+const delta2 = 2;
 let steps = [];
 
 function setup() {
-  createCanvas(canvasWidth, canvasHeight);
+  createCanvas(canvasWidth, canvasHeight, SVG);
   strokeWeight(0);
   stroke(0);
-  background(255);
-  fill(227);
-  rect(0, canvasHeight/2, canvasWidth, canvasHeight/2);
+  // background(255);
+  fill(0, 0, 0, 0);
+}
 
-  strokeWeight(weight);
-  let root = new Step(0, 0, canvasHeight / 2, 200, false, null);
-  steps.push(root);
-  steps[0].drawChildren();
-  for (let step of steps) {
-    if (step.ends && !step.middle) {
-      let quadHeight = maxHeight * 2 ** (-step.depth - 1);
-      // let quadWidth = quadHeight * 1/2;
-      let quadWidth = quadHeight * 1/sqrt(2);
-      strokeWeight(0);
-      triangle(
-        baseEnd - quadWidth * 2,
-        step.y,
-        baseEnd + 1000,
-        step.y + 1000 * sqrt(2),
-        baseEnd + 1000,
-        step.y - 1000 * sqrt(2)
-      )
-
-      point(baseEnd, step.y);
-      strokeWeight(0);
-    }
-  }
+function mousePressed() {
+  // save('test.svg');
 }
 
 function draw() {
+  if (shade) {
+    fill(227);
+    rect(0, canvasHeight/2, canvasWidth, canvasHeight/2);
+  }
+
+  strokeWeight(weight);
+  line(maxHeight/2, canvasHeight/2 - maxHeight, baseEnd, canvasHeight/2 - maxHeight);
+  line(maxHeight/2, canvasHeight/2 + maxHeight, baseEnd, canvasHeight/2 + maxHeight);
+  line(0, canvasHeight/2, maxHeight/2, canvasHeight/2 - maxHeight);
+  line(0, canvasHeight/2, maxHeight/2, canvasHeight/2 + maxHeight);
+  let newLength = (maxHeight * 2 ** (1-2) + random() * maxLength);
+  let root = new Step(0, 0, canvasHeight / 2, newLength, false, null);
+  steps.push(root);
+  steps[0].drawChildren();
+  line(baseEnd + maxHeight/2, canvasHeight/2, baseEnd, canvasHeight/2 - maxHeight);
+  line(baseEnd + maxHeight/2, canvasHeight/2, baseEnd, canvasHeight/2 + maxHeight);
   noLoop();
 }
 
@@ -52,30 +52,28 @@ class Step {
     this.y = y;
     this.length = length;
     this.middle = middle;
-    this.terminates = middle || this.ends;
     this.parent = parent;
+    this.quadHeight = maxHeight * 2 ** (-this.depth - 1);
+    this.quadWidth = maxHeight * 2 ** (-this.depth - 1) / 2;
+    this.terminates = middle || this.ends;
+    // console.log(this.quadHeight, this.quadWidth);
   }
 
   makeChildren() {
     if (this.terminates) {
       return [];
     }
-    console.log(this.depth);
-    console.log(this.length);
-    console.log(this.x);
-    console.log(this.y);
     let children = [];
     let newDepth = this.depth + 1;
 
-    let r = Math.random();
+    let r = random();
 
     for (let i = 0; i < 3; i++) {
-      let newLength = this.terminates ? canvasWidth : maxHeight * 2 ** (-this.depth - 1) + Math.random() * maxLength;
-      // let newLength = this.terminates ? canvasWidth : maxHeight * 2 ** (-this.depth - 1) + r * maxLength;
-      let newX = this.x + this.length + !(1 - i) * maxHeight * 2 ** (-newDepth) * 1/Math.sqrt(2);
+      let newLength = this.terminates ? canvasWidth : (maxHeight * 2 ** (-this.depth - 3) + random() * maxLength);
+      // let newLength = this.terminates ? canvasWidth : (maxHeight * 2 ** (-this.depth - 3) + r * maxLength);
+      let newX = this.x + this.length + !(1 - i) * maxHeight * 2 ** (-newDepth) * 1/2;
       let newY = this.y + (1 - i) * maxHeight * 2 ** (-newDepth);
       let newMiddle = !(1 - i);
-      console.log(newMiddle);
 
       let newStep = new Step(newDepth, newX, newY, newLength, newMiddle, this);
       children.push(newStep);
@@ -85,48 +83,147 @@ class Step {
   }
 
   get ends() {
-    return (this.x < baseEnd && this.x + this.length >= baseEnd) || (this.x < baseEnd && this.depth >= maxDepth);
-    let doesEnd = this.x + this.length >= baseEnd && this.x < baseEnd;
-    //doesEnd ||= (this.middle && this.x < baseEnd);
-    return doesEnd;
+    // let quadHeight = maxHeight * 2 ** (-this.depth - 1);
+    // let quadWidth = quadHeight * 1/2;
+    // let quadWidth = quadHeight * 1/2;
+    return (this.x < baseEnd && this.x + this.length + this.quadWidth >= baseEnd) || (this.x < baseEnd && this.depth >= maxDepth);
+  }
+
+  get endX() {
+    let quadHeight = maxHeight * 2 ** (-this.depth - 1);
+    // let quadWidth = quadHeight * 1/2;
+    let quadWidth = quadHeight * 1/2;
+    return !this.terminates ?
+      this.x + this.length - this.quadWidth :
+      this.middle ? baseEnd :
+      baseEnd - this.quadWidth * 2;
   }
 
   draw() {
     steps.push(this);
-    let quadHeight = maxHeight * 2 ** (-this.depth - 1);
+    // let quadHeight = maxHeight * 2 ** (-this.depth - 1);
     // let quadWidth = quadHeight * 1/2;
-    let quadWidth = quadHeight * 1/sqrt(2);
-    if (!this.terminates && this.depth < maxDepth) {
+    // let quadWidth = quadHeight * 1/2;
+    if (!this.terminates && this.depth < maxDepth && shade) {
       fill(227);
       strokeWeight(0);
       rect(
         this.x + this.length,
-        this.y - quadHeight,
+        this.y - this.quadHeight,
         canvasWidth,
-        quadHeight,
+        this.quadHeight,
       )
       fill(255);
       rect(
         this.x + this.length,
         this.y,
         canvasWidth,
-        quadHeight,
+        this.quadHeight,
       )
     }
+    if (!this.terminates && this.depth < maxDepth && cross) {
+      // let d = 10;
+      for (let d = 8; d <= this.length - this.quadWidth; d += 8) {
+        // line(
+        //   this.x + d,
+        //   this.y,
+        //   this.x + d + this.quadWidth*2,
+        //   this.y + this.quadHeight*2
+        // );
+        // break;
+      }
+    }
     strokeWeight(weight);
-    line(this.x, this.y, canvasWidth, this.y);
+    let endX = !this.terminates ?
+      this.x + this.length - this.quadWidth:
+      canvasWidth;
+    line(this.x, this.y, this.endX, this.y);
     if (!this.terminates && this.depth < maxDepth) {
-      fill(200);
+      if (shade) {
+        fill(200);
+      }
       quad(
-        this.x - quadWidth + this.length,
+        this.x - this.quadWidth + this.length,
         this.y,
         this.x + this.length,
-        this.y + quadHeight,
-        this.x + quadWidth + this.length,
+        this.y + this.quadHeight,
+        this.x + this.quadWidth + this.length,
         this.y,
         this.x + this.length,
-        this.y - quadHeight,
+        this.y - this.quadHeight,
       );
+      if (cross) {
+        for (let d = delta2; d <= this.quadWidth; d += delta2) {
+          line(
+            this.x + d - this.quadWidth + this.length,
+            this.y + d * 2,
+            this.x + d + this.length,
+            this.y + d * 2 - this.quadHeight,
+          );
+        }
+        for (let d = delta1; d <= this.quadWidth; d += delta1) {
+          let parent = this;
+          for (let i = 0; i < this.depth; i++) {
+
+
+            if (this.y < parent.parent.y) {
+              break;
+            }
+
+            parent = parent.parent;
+          }
+          let endX = parent.x + (this.y + d*2 - parent.y)/2;
+          line(
+            this.x + d - this.quadWidth + this.length,
+            this.y + d * 2,
+            endX,
+            this.y + d * 2,
+          );
+        }
+      }
+    }
+    // point(baseEnd, this.y);
+    if (this.ends && !this.middle) {
+      line(
+        baseEnd - this.quadWidth * 2,
+        this.y,
+        baseEnd,
+        this.y + this.quadHeight * 2
+      );
+      line(
+        baseEnd - this.quadWidth * 2,
+        this.y,
+        baseEnd,
+        this.y - this.quadHeight * 2
+      );
+      for (let d = delta1; d <= this.quadHeight; d += delta1) {
+        let parent = this;
+        for (let i = 0; i < this.depth; i++) {
+
+
+          if (this.y < parent.parent.y) {
+            break;
+          }
+
+          parent = parent.parent;
+        }
+        let endX = parent.x + (this.y + d*2 - parent.y)/2;
+        line(
+          baseEnd -this.quadHeight + d,
+          this.y + d * 2,
+          endX,
+          this.y + d * 2,
+        );
+      }
+      for (let d = delta2; d <= this.quadHeight; d += delta2) {
+        let down = this.y - (canvasHeight/2 - maxHeight) + d*2;
+        line(  // wtf is this math
+          baseEnd -this.quadHeight + d,
+          this.y + d * 2,
+          baseEnd + down/4 - this.quadWidth + d/2,
+          canvasHeight/2 - maxHeight + down/2 + d - this.quadHeight
+        );
+      }
     }
 
   }
@@ -136,9 +233,12 @@ class Step {
     if (this.terminates) {
       return;
     }
-    if (this.depth >= maxDepth) {
-      return;
-    }
+    // if (this.ends) {
+    //   return;
+    // }
+    // if (this.depth >= maxDepth) {
+    //   return;
+    // }
     for (let child of this.makeChildren()) {
       child.drawChildren();
     }
